@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Darmowy planer nauki: wpisz tematy, datę startu i końca, a kalendarz rozłoży materiał na tygodnie i zostawi czas na powtórki.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='23' rx='4' fill='%232f5a9a'/%3E%3Crect x='3' y='6' width='26' height='7' rx='3' fill='%2321703c'/%3E%3Ccircle cx='11' cy='20' r='2.5' fill='%23fffdf9'/%3E%3Ccircle cx='21' cy='20' r='2.5' fill='%23fff1a6'/%3E%3C/svg%3E">
+<style>html{color-scheme:light}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Kalendarz nauki</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Układ: zeszyt w kratkę; jedna kolumna, u góry plany jak zakładki, niżej bieżący tydzień zakreślony jak markerem, potem rozpiska tygodni. */
+:root{
+  --paper:#fbf7f1; --grid:#efe6da; --card:#fffdf9; --ink:#2b231d; --muted:#76685c; --line:#e4d8ca;
+  --accent:#2f5a9a; --accent-soft:#e6ebf4; --mark:#fff1a6; --mark-ink:#5a4a00;
+  --ok:#2f7a4a; --ok-soft:#e2f2e7; --warn:#a2541a; --warn-soft:#fbeadc;
+  --tg-green:#21703c; --tg-green-bg:#d9f0df; --tg-purple:#6a3fa0; --tg-purple-bg:#ece3f8; --tg-gray:#6b6158; --tg-gray-bg:#ece5dd; --tg-rose:#a33a5c; --tg-rose-bg:#f8e1e9; --tg-teal:#1d6b70; --tg-teal-bg:#d9eff0;
+  --f-display:"Young Serif",Georgia,"Times New Roman",serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#1a1613; --grid:#241e1a; --card:#221c18; --ink:#f0e8df; --muted:#b3a597; --line:#3a312a;
+  --accent:#9db8e6; --accent-soft:#272b38; --mark:#5b4f12; --mark-ink:#fff3b8;
+  --ok:#7fcf9a; --ok-soft:#173226; --warn:#f0a56b; --warn-soft:#3a2516;
+  --tg-green:#8fe0a8; --tg-green-bg:#1a3a25; --tg-purple:#c6a8f0; --tg-purple-bg:#2e2342; --tg-gray:#b3bdca; --tg-gray-bg:#262e3a; --tg-rose:#f0a3bd; --tg-rose-bg:#3d1f2a; --tg-teal:#8fd8dc; --tg-teal-bg:#173436; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#1a1613; --grid:#241e1a; --card:#221c18; --ink:#f0e8df; --muted:#b3a597; --line:#3a312a;
+  --accent:#9db8e6; --accent-soft:#272b38; --mark:#5b4f12; --mark-ink:#fff3b8;
+  --ok:#7fcf9a; --ok-soft:#173226; --warn:#f0a56b; --warn-soft:#3a2516;
+  --tg-green:#8fe0a8; --tg-green-bg:#1a3a25; --tg-purple:#c6a8f0; --tg-purple-bg:#2e2342; --tg-gray:#b3bdca; --tg-gray-bg:#262e3a; --tg-rose:#f0a3bd; --tg-rose-bg:#3d1f2a; --tg-teal:#8fd8dc; --tg-teal-bg:#173436; color-scheme:dark}
+*{box-sizing:border-box}
+body{background-color:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:1.9rem;line-height:1.1}
+h2{font-size:1.35rem}
+h3{font-size:1.05rem}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.small{font-size:.85rem}
+a{color:var(--accent)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--card);font-weight:600}
+button.ghost{background:transparent;border-color:transparent;padding:4px 8px;color:var(--muted)}
+button.ghost:hover{color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=date],input[type=number],input[type=url],textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 10px}
+textarea{min-height:120px;resize:vertical}
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:500;font-size:.9rem;min-width:0}
+.hint{font-weight:400;color:var(--muted);font-size:.82rem}
+
+header.top{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border-radius:999px;padding:6px 14px}
+.tab[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-mono);font-size:1.35rem;font-weight:500;font-variant-numeric:tabular-nums}
+.stat span{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--accent-soft);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+.now{background:linear-gradient(transparent 0,transparent 0),var(--card);position:relative}
+.now .hl{background:var(--mark);color:var(--mark-ink);padding:0 6px;border-radius:3px}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.task{display:flex;gap:10px;align-items:flex-start;padding:6px 4px;border-radius:6px}
+.task:hover{background:var(--accent-soft)}
+.task input{margin-top:4px;width:17px;height:17px;accent-color:var(--accent);flex:none}
+.task .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.task.done .t{text-decoration:line-through;color:var(--muted)}
+.task .h{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);white-space:nowrap}
+.task .x{visibility:hidden}
+.task:hover .x,.task:focus-within .x{visibility:visible}
+.pill{display:inline-block;font-size:.72rem;letter-spacing:.04em;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.mark{background:var(--mark);color:var(--mark-ink)}
+.pill.c-green{background:var(--tg-green-bg);color:var(--tg-green)}
+.pill.c-purple{background:var(--tg-purple-bg);color:var(--tg-purple)}
+.pill.c-gray{background:var(--tg-gray-bg);color:var(--tg-gray)}
+.pill.c-rose{background:var(--tg-rose-bg);color:var(--tg-rose)}
+.pill.c-teal{background:var(--tg-teal-bg);color:var(--tg-teal)}
+.pill.c-amber{background:var(--warn-soft);color:var(--warn)}
+
+.weeks{display:flex;flex-direction:column;gap:0}
+.wk{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:12px 0;border-top:1px dashed var(--line)}
+.wk:first-child{border-top:0}
+.wk .d{display:flex;flex-direction:column;gap:4px}
+.wk .d .n{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.wk .d .r{font-family:var(--f-mono);font-size:.9rem;white-space:nowrap}
+.wk .d .pill{align-self:flex-start}
+.wk.cur .d .r{background:var(--mark);color:var(--mark-ink);padding:0 4px;border-radius:3px;align-self:flex-start}
+.wk.past.done .d .r{color:var(--ok)}
+.wk .body{min-width:0;display:flex;flex-direction:column;gap:6px}
+.addline{display:flex;gap:6px}
+.addline input{flex:1;min-width:0;padding:5px 8px;font-size:.88rem;border-style:dashed;background:transparent}
+.addline button{padding:5px 10px;font-size:.85rem}
+@media (max-width:520px){.wk{grid-template-columns:1fr;gap:6px}.wk .d{flex-direction:row;gap:10px;align-items:baseline}}
+
+.mats{display:flex;flex-direction:column;gap:8px}
+.mat{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.mat:first-child{border-top:0}
+.mat .m{min-width:0;overflow-wrap:anywhere}
+.notice{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 12px;border-radius:0 8px 8px 0;font-size:.88rem}
+.info{border-left:3px solid var(--accent);background:var(--accent-soft);padding:8px 12px;border-radius:0 8px 8px 0;font-size:.88rem}
+.empty{text-align:center;padding:30px 10px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.status{font-size:.85rem;color:var(--muted);min-height:1.2em}
+.subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.subtabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:8px 12px;color:var(--muted)}
+.subtabs button[aria-pressed=true]{border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;color:var(--muted)}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px}
+.months{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px 22px}
+.month{display:flex;flex-direction:column;gap:6px;min-width:0}
+.month h3{font-size:1rem;text-transform:capitalize}
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dow{font-size:.68rem;text-align:center;color:var(--muted);letter-spacing:.04em}
+.day{aspect-ratio:1;max-width:100%;padding:0;border:0;border-radius:6px;font-family:var(--f-mono);font-size:.8rem;display:flex;align-items:center;justify-content:center;background:transparent;color:var(--muted)}
+.day.out{opacity:.45}
+button.day{cursor:pointer}
+.day.c-blue,.sw.c-blue{background:var(--accent-soft);color:var(--accent)}
+.day.c-green,.sw.c-green{background:var(--tg-green-bg);color:var(--tg-green)}
+.day.c-purple,.sw.c-purple{background:var(--tg-purple-bg);color:var(--tg-purple)}
+.day.c-gray,.sw.c-gray{background:var(--tg-gray-bg);color:var(--tg-gray)}
+.day.c-rose,.sw.c-rose{background:var(--tg-rose-bg);color:var(--tg-rose)}
+.day.c-teal,.sw.c-teal{background:var(--tg-teal-bg);color:var(--tg-teal)}
+.day.c-amber,.sw.c-amber{background:var(--warn-soft);color:var(--warn)}
+.day.done{text-decoration:line-through;opacity:.6}
+.sw.done{background:var(--line)}
+.day.sel{box-shadow:inset 0 0 0 2px currentColor;font-weight:600}
+.day.today{background:var(--mark);color:var(--mark-ink);font-weight:600}
+.day:hover{filter:brightness(.95)}
+.selweek{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:8px}
+#subview{display:flex;flex-direction:column;gap:14px}
+.flash{border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;background:var(--paper)}
+.fq{font-family:var(--f-display);font-size:1.25rem;line-height:1.35;text-wrap:balance}
+.fa{border-top:1px dashed var(--line);padding-top:10px;font-size:1rem}
+.mini{font-size:.75rem;white-space:nowrap}
+details summary{cursor:pointer;color:var(--accent);font-size:.9rem}
+select{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 8px}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:10px}
+.steps li{padding-left:4px}
+.steps li span{display:block}
+.steps li::marker{font-family:var(--f-mono);color:var(--accent)}
+.filebtn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px}
+.filebtn:hover{border-color:var(--accent)}
+.filebtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="small muted" style="letter-spacing:.08em;text-transform:uppercase">Twoje plany</div>
+      <h1>Kalendarz nauki</h1>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </header>
+  <div id="sync" class="status"></div>
+  <main id="main" style="display:flex;flex-direction:column;gap:18px"></main>
+</div>
+
+<script>
+"use strict";
+/* ---------- daty ---------- */
+const DAY=864e5;
+const MON=["sty","lut","mar","kwi","maj","cze","lip","sie","wrz","paź","lis","gru"];
+const pd=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const fd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const today=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
+const short=d=>`${d.getDate()} ${MON[d.getMonth()]}`;
+function weekRange(p,i){const s=new Date(+pd(p.start)+i*7*DAY);const e=new Date(+s+6*DAY);return `${short(s)} – ${short(e)}`}
+function nWeeks(start,end){return Math.max(1,Math.ceil((pd(end)-pd(start)+DAY)/(7*DAY)))}
+function curWeek(p){const i=Math.floor((today()-pd(p.start))/(7*DAY));return i}
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const r1=x=>Math.round(x*10)/10;
+const TAGC={biologia:"c-green",informatyka:"","powtórka":"c-amber",rozmowa:"c-purple",przerwa:"c-gray"};
+const TAGP=["c-teal","c-rose","c-purple","c-amber","c-green",""];
+function tagClass(n){const k=String(n||"").toLowerCase().trim();if(k in TAGC)return TAGC[k];let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))>>>0;return TAGP[h%TAGP.length]}
+const tag=n=>`<span class="pill ${tagClass(n)}">${esc(n)}</span>`;
+
+/* ---------- rozkładanie planu ---------- */
+// tasks: [{t,h,topic}] w kolejności; zwraca tablicę tygodni
+function schedule(tasks,weeksCount,hours,fromWeek=0,revWeeks=null){
+  const n=weeksCount;
+  const rev = revWeeks ?? (n>=6?Math.max(1,Math.round(n*0.1)):0);
+  const contentEnd=n-rev;                       // tygodnie [fromWeek, contentEnd) na treści
+  const slots=Math.max(1,contentEnd-fromWeek);
+  const total=tasks.reduce((a,t)=>a+(+t.h||1),0);
+  const target=Math.min(hours,total/slots)||hours;
+  const out=Array.from({length:n},()=>({tasks:[]}));
+  let cum=0;const per=Math.max(target,total/slots);
+  for(const t of tasks){
+    const h=+t.h||1;
+    const w=Math.min(fromWeek+Math.floor((cum+h/2)/per),Math.max(fromWeek,contentEnd-1));
+    out[w].tasks.push({id:uid(),t:t.t,h,topic:t.topic||"",done:false});
+    cum+=h;
+  }
+  return {weeks:out,rev,contentEnd,total,target};
+}
+function revisionTasks(topics,rev,hours){
+  // dzieli tematy na grupy powtórek
+  const out=[];if(!rev)return out;
+  const per=Math.ceil(topics.length/rev)||1;
+  for(let i=0;i<rev;i++){
+    const g=topics.slice(i*per,(i+1)*per);
+    out.push([{id:uid(),t:g.length?`Powtórka: ${g.join(", ")}`:"Powtórka ogólna i bufor na zaległości",h:hours,topic:"Powtórka",done:false,rev:true}]);
+  }
+  return out;
+}
+function buildPlan({name,start,end,hours,topics,materials}){
+  // topics: [{title,hours?,tasks?:[{t,h}]}]
+  const n=nWeeks(start,end);
+  const rev=n>=6?Math.max(1,Math.round(n*0.1)):0;
+  const cap=(n-rev)*hours;
+  const given=topics.reduce((a,t)=>a+(+t.hours||0),0);
+  const flat=[];
+  for(const tp of topics){
+    if(tp.tasks&&tp.tasks.length){for(const x of tp.tasks)flat.push({t:x.t,h:+x.h||1,topic:tp.title})}
+    else{
+      const h=+tp.hours||Math.max(1,cap/topics.length);
+      const parts=Math.max(1,Math.ceil(h/Math.max(1,hours)));
+      for(let k=0;k<parts;k++)flat.push({t:parts>1?`${tp.title} (część ${k+1}/${parts})`:tp.title,h:r1(h/parts),topic:tp.title});
+    }
+  }
+  if(!topics.some(t=>t.tasks&&t.tasks.length)){
+    // bez rozpiski zadań: wypełniamy tygodnie równo, dzieląc tematy na granicach tygodni
+    const hs=topics.map(t=>+t.hours||cap/topics.length);const tot=hs.reduce((a,b)=>a+b,0);
+    const per=tot/Math.max(1,n-rev);const pieces=topics.map(()=>[]);
+    let w=0,room=per;
+    topics.forEach((t,i)=>{let left=hs[i];
+      while(left>0.05){const take=Math.min(left,room);pieces[i].push({w,h:take});left-=take;room-=take;
+        if(room<0.05&&w<n-rev-1){w++;room=per}else if(room<0.05){room=Infinity}}});
+    flat.length=0;
+    const weeksArr=Array.from({length:n},()=>({tasks:[]}));
+    topics.forEach((t,i)=>pieces[i].forEach((pc,k,arr)=>weeksArr[pc.w].tasks.push({id:uid(),t:arr.length>1?`${t.title} (część ${k+1}/${arr.length})`:t.title,h:r1(pc.h),topic:t.title,done:false})));
+    const rv0=revisionTasks(topics.map(t=>t.title),rev,hours);rv0.forEach((ts,i)=>weeksArr[n-rev+i].tasks=ts);
+    return {name,start,end,hours,created:Date.now(),topics:topics.map(t=>t.title),materials:materials||[],weeks:weeksArr.map(w=>({tasks:w.tasks,note:""}))};
+  }
+  const s=schedule(flat,n,hours,0,rev);
+  const rv=revisionTasks(topics.map(t=>t.title),rev,hours);
+  rv.forEach((ts,i)=>s.weeks[s.contentEnd+i].tasks=ts);
+  return {name,start,end,hours,created:Date.now(),
+    topics:topics.map(t=>t.title),
+    materials:materials||[],
+    weeks:s.weeks.map(w=>({tasks:w.tasks,note:""}))};
+}
+// przelicza niezrobione zadania od bieżącego tygodnia
+function replan(p){
+  const n=p.weeks.length, cw=Math.max(0,Math.min(n-1,curWeek(p)));
+  const pending=[];
+  p.weeks.forEach((w,i)=>{
+    const keep=[];
+    for(const t of w.tasks){
+      if(t.done||t.rev)keep.push(t);
+      else pending.push(t);
+    }
+    w.tasks=keep;
+  });
+  // tygodnie powtórek = te, które mają zadania rev i leżą na końcu
+  let rev=0;for(let i=n-1;i>=0&&p.weeks[i].tasks.some(t=>t.rev);i--)rev++;
+  const s=schedule(pending.map(t=>({t:t.t,h:t.h,topic:t.topic})),n,p.hours,cw,rev);
+  // gdy cw jest już w powtórkach, wrzuć wszystko do bieżącego tygodnia
+  s.weeks.forEach((w,i)=>{if(w.tasks.length)p.weeks[i].tasks.push(...w.tasks)});
+  return pending.length;
+}
+
+/* ---------- magazyn ---------- */
+let db=null, coll=null, plans=[], sel=null, sub="mies", selWeek=null, localMode=false;
+const LS="kalendarz-nauki-plany-pub";
+const loadLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||"[]")}catch(e){return[]}};
+const saveLocal=()=>{try{localStorage.setItem(LS,JSON.stringify(plans))}catch(e){}};
+const queues={};
+function save(p,fields){
+  if(localMode||!coll){saveLocal();return Promise.resolve()}
+  const id=p.id;const body={};for(const f of fields)body[f]=JSON.parse(JSON.stringify(p[f]));
+  setSync("Zapisuję…");
+  queues[id]=(queues[id]||Promise.resolve()).then(()=>coll.doc(id).update(body))
+    .then(()=>setSync("Zapisano"),e=>setSync("Nie udało się zapisać: "+(e&&e.message||e)+". Odśwież stronę i spróbuj ponownie."));
+  return queues[id];
+}
+async function createPlan(p){
+  if(localMode||!coll){p.id=uid();plans.push(p);saveLocal();sel=p.id;render();return}
+  const ref=coll.doc();const {id,...body}=p;
+  setSync("Zapisuję nowy plan…");sel=ref.id;sub="mies";selWeek=null;
+  await ref.set(JSON.parse(JSON.stringify(body)));
+  setSync("Zapisano");render();
+}
+async function removePlan(p){
+  if(localMode||!coll){plans=plans.filter(x=>x.id!==p.id);saveLocal();sel=plans[0]?.id||null;render();return}
+  await coll.doc(p.id).delete();sel=null;
+}
+function setSync(t){document.getElementById("sync").textContent=t}
+
+/* ---------- Claude ---------- */
+let sample=null;
+async function askPlan(f,onText){
+  const n=nWeeks(f.start,f.end);const rev=n>=6?Math.max(1,Math.round(n*0.1)):0;
+  const cap=(n-rev)*f.hours;
+  const prompt=`Jesteś doświadczonym planistą nauki. Ułóż materiał do nauki.
+Cel: ${f.name}
+Okres: od ${f.start} do ${f.end} (${n} tygodni, z tego ${rev} ostatnich zostanie na powtórki).
+Czas: ${f.hours} h tygodniowo, więc na nowy materiał jest łącznie około ${cap} h.
+${f.topics.length?`Tematy do opanowania (zachowaj kolejność i nazwy):\n${f.topics.map(t=>"- "+t).join("\n")}`:"Lista tematów jest pusta: sam ułóż sensowną listę tematów dla tego celu, w logicznej kolejności."}
+${f.materials.length?`Materiały, które już mam (wykorzystaj je w zadaniach):\n${f.materials.map(m=>"- "+m.title+(m.url?" ("+m.url+")":"")).join("\n")}`:""}
+${f.extra?`Dodatkowe uwagi: ${f.extra}`:""}
+
+Dla każdego tematu:
+1. oszacuj liczbę godzin tak, aby suma wyniosła około ${cap} h;
+2. rozbij temat na konkretne zadania po 1–3 h (co przeczytać, obejrzeć, przećwiczyć, rozwiązać), po polsku;
+3. ${f.find?"podaj 1–3 darmowe, legalne źródła (najlepiej po polsku; np. OpenStax, LibreTexts, NCBI Bookshelf, Khan Academy, materiały CKE, Wikibooks, kursy uczelni). Podawaj tylko adresy, których jesteś pewien; jeśli nie jesteś pewien adresu, podaj url pusty i opisz, jak znaleźć źródło.":"nie podawaj nowych źródeł (materials ma być pustą tablicą)."}
+
+Odpowiedz wyłącznie JSON w tym kształcie:
+{"topics":[{"title":"Budowa komórki","hours":6,"tasks":[{"t":"Przeczytaj rozdział o organellach i zrób notatkę","h":2}],"materials":[{"title":"OpenStax Biology 2e, rozdz. 4","url":"https://openstax.org/books/biology-2e/pages/4-introduction","note":"darmowy podręcznik po angielsku"}]}]}`;
+  return sample.json(prompt,{onText,modelTier:"default"});
+}
+async function askMaterials(topic,plan,onText){
+  const prompt=`Szukam darmowych, legalnych materiałów do nauki tematu: "${topic}" (w ramach: ${plan.name}).
+Podaj 3–6 źródeł: najlepiej po polsku, mogą być po angielsku. Np. otwarte podręczniki (OpenStax, LibreTexts, NCBI Bookshelf), Khan Academy, materiały CKE, Wikibooks, kursy i wykłady uczelni, filmy edukacyjne.
+Podawaj tylko adresy, których jesteś pewien. Jeśli nie znasz dokładnego adresu, daj url pusty i w note napisz, jak to znaleźć.
+Odpowiedz wyłącznie JSON: [{"title":"...","url":"https://...","note":"krótko: co to i dlaczego warto"}]`;
+  return sample.json(prompt,{onText,modelTier:"default"});
+}
+
+/* ---------- widoki ---------- */
+const main=document.getElementById("main");
+function current(){return plans.find(p=>p.id===sel)||null}
+function render(){
+  const tabs=document.getElementById("tabs");
+  tabs.innerHTML=plans.map(p=>`<button type="button" class="tab" data-plan="${esc(p.id)}" aria-pressed="${p.id===sel}">${esc(p.name)}</button>`).join("")
+    +`<button type="button" class="tab" data-plan="__new" aria-pressed="${sel==="__new"}">+ Nowy plan</button>`;
+  if(sel==="__new")return renderNew();
+  const p=current();
+  if(!p){
+    main.innerHTML=`<section class="panel"><h2>Ucz się według planu, który sam się układa</h2>
+      <p class="muted" style="max-width:60ch;margin:0">Matura, egzamin, rekrutacja na studia albo własny kurs: wpisz, czego musisz się nauczyć, podaj datę startu i końca oraz ile godzin w tygodniu masz. Kalendarz rozłoży materiał na tygodnie i zostawi czas na powtórki.</p>
+      <ol class="steps">
+        <li><b>Wpisz tematy</b><span class="muted small">Wklej listę z sylabusa, informatora albo wymagań. Możesz dodać własne materiały.</span></li>
+        <li><b>Kalendarz rozpisuje plan</b><span class="muted small">Dzieli tematy na tygodnie według Twojego czasu, a na końcu zostawia tygodnie na powtórki.</span></li>
+        <li><b>Odhaczaj i powtarzaj</b><span class="muted small">Widok miesiąca, zaległości przesuwane jednym kliknięciem i fiszki z przerobionych tematów.</span></li>
+      </ol>
+      <div class="row"><button type="button" class="primary" data-plan="__new">Utwórz swój plan</button><button type="button" data-act="example">Zobacz przykładowy plan</button></div>
+      <p class="small muted" style="margin:0">Bez zakładania konta. Plany zapisują się w Twojej przeglądarce i nikt inny ich nie widzi. Kopię zapasową zrobisz w Ustawieniach planu.</p></section>`;
+    return;
+  }
+  renderPlan(p);
+}
+
+function planStats(p){
+  let all=0,done=0,hAll=0,hDone=0;
+  p.weeks.forEach(w=>w.tasks.forEach(t=>{all++;hAll+=+t.h||0;if(t.done){done++;hDone+=+t.h||0}}));
+  const cw=curWeek(p);const late=p.weeks.slice(0,Math.max(0,cw)).reduce((a,w)=>a+w.tasks.filter(t=>!t.done).length,0);
+  const left=Math.ceil((pd(p.end)-today())/DAY);
+  return {all,done,hAll,hDone,cw,late,left};
+}
+
+function taskHTML(t,wi){
+  return `<li class="task${t.done?" done":""}">
+    <input type="checkbox" id="t-${esc(t.id)}" data-w="${wi}" data-t="${esc(t.id)}" ${t.done?"checked":""}>
+    <label class="t" for="t-${esc(t.id)}">${esc(t.t)}${t.topic?" "+tag(t.topic):""}</label>
+    <span class="h">${r1(+t.h||0)} h</span>
+    ${t.done&&sample?`<button type="button" class="ghost mini" data-mkcards="${esc(t.id)}" data-w="${wi}" title="Claude zrobi fiszki z tego zadania">+ fiszki</button>`:""}
+    <button type="button" class="ghost x" data-del="${esc(t.id)}" data-w="${wi}" aria-label="Usuń zadanie">✕</button></li>`;
+}
+
+function renderPlan(p){
+  const s=planStats(p);const n=p.weeks.length;
+  const cw=s.cw;const inRange=cw>=0&&cw<n;
+  const pct=s.hAll?Math.round(s.hDone/s.hAll*100):0;
+  const w=inRange?p.weeks[cw]:null;
+  const wh=w?w.tasks.reduce((a,t)=>a+(+t.h||0),0):0, whd=w?w.tasks.filter(t=>t.done).reduce((a,t)=>a+(+t.h||0),0):0;
+  main.innerHTML=`
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <h2>${esc(p.name)}</h2>
+      <span class="mono small muted">${short(pd(p.start))} ${pd(p.start).getFullYear()} → ${short(pd(p.end))} ${pd(p.end).getFullYear()} · ${p.hours} h/tydz.</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>${pct}%</b><span>zrobione (godziny)</span></div>
+      <div class="stat"><b>${inRange?cw+1:(cw<0?"–":n)}/${n}</b><span>tydzień</span></div>
+      <div class="stat"><b>${s.left>0?s.left:0}</b><span>dni do końca</span></div>
+      <div class="stat"><b style="color:${s.late?"var(--warn)":"var(--ok)"}">${s.late}</b><span>zaległe zadania</span></div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
+    ${s.late?`<div class="notice row" style="justify-content:space-between"><span>Masz ${s.late} ${s.late===1?"zaległe zadanie":"zaległych zadań"} z poprzednich tygodni.</span><button type="button" data-act="replan">Przesuń zaległości i przelicz plan</button></div>`:""}
+  </section>
+
+  ${w?`<section class="panel now">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <h2><span class="hl">Ten tydzień</span></h2>
+      <span class="mono small">${weekRange(p,cw)} · ${r1(whd)}/${r1(wh)} h</span>
+    </div>
+    <ul class="tasks">${w.tasks.map(t=>taskHTML(t,cw)).join("")||`<li class="muted small">Brak zadań w tym tygodniu.</li>`}</ul>
+    <label class="f">Notatka do tygodnia <span class="hint">np. link do strony w Notion albo co sprawiło trudność</span>
+      <textarea id="note-${cw}" data-note="${cw}" style="min-height:60px">${esc(w.note||"")}</textarea></label>
+  </section>`:cw<0?`<section class="panel info">Plan zaczyna się ${short(pd(p.start))}. Do startu zostało ${Math.ceil((pd(p.start)-today())/DAY)} dni.</section>`:`<section class="panel info">Ten plan już się zakończył. Gratulacje!</section>`}
+
+  <section class="panel">
+    <nav class="subtabs" aria-label="Widok planu">
+      <button type="button" data-sub="mies" aria-pressed="${sub==="mies"}">Miesiące</button>
+      <button type="button" data-sub="tyg" aria-pressed="${sub==="tyg"}">Tygodnie</button>
+      <button type="button" data-sub="mat" aria-pressed="${sub==="mat"}">Materiały (${p.materials.length})</button>
+      <button type="button" data-sub="fis" aria-pressed="${sub==="fis"}">Fiszki (${dueCards(p).length}/${(p.cards||[]).length})</button>
+      <button type="button" data-sub="ust" aria-pressed="${sub==="ust"}">Ustawienia</button>
+    </nav>
+    <div id="subview">${sub==="mies"?monthHTML(p,cw):sub==="tyg"?weeksHTML(p,cw):sub==="mat"?matsHTML(p):sub==="fis"?cardsHTML(p):settingsHTML(p)}</div>
+  </section>`;
+}
+
+const DOW=["pn","wt","śr","cz","pt","sb","nd"];
+const MONF=["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+function weekTag(w){const c={};w.tasks.forEach(t=>{if(t.topic)c[t.topic]=(c[t.topic]||0)+(+t.h||1)});let b="",m=-1;for(const k in c)if(c[k]>m){m=c[k];b=k}return b}
+function monthHTML(p,cw){
+  const n=p.weeks.length,s0=pd(p.start),e0=new Date(+s0+(n*7-1)*DAY),t0=today();
+  const sw=selWeek??Math.max(0,Math.min(n-1,cw));
+  const tags=[...new Set(p.weeks.map(weekTag).filter(Boolean))];
+  let html=`<div class="legend">${tags.map(t=>`<span class="lg"><i class="sw ${tagClass(t)||"c-blue"}"></i>${esc(t)}</span>`).join("")}<span class="lg"><i class="sw done"></i>tydzień zrobiony</span></div><div class="months">`;
+  for(let y=s0.getFullYear(),m=s0.getMonth();new Date(y,m,1)<=e0;m===11?(y++,m=0):m++){
+    const first=new Date(y,m,1),dn=new Date(y,m+1,0).getDate(),lead=(first.getDay()+6)%7;
+    html+=`<div class="month"><h3>${MONF[m]} ${y}</h3><div class="mgrid">${DOW.map(d=>`<span class="dow">${d}</span>`).join("")}${"<span></span>".repeat(lead)}`;
+    for(let d=1;d<=dn;d++){
+      const dt=new Date(y,m,d),wi=Math.floor((dt-s0)/(7*DAY));
+      if(wi<0||wi>=n){html+=`<span class="day out">${d}</span>`;continue}
+      const w=p.weeks[wi],tg=weekTag(w),done=w.tasks.length&&w.tasks.every(t=>t.done);
+      const cls=["day",tagClass(tg)||"c-blue",done?"done":"",wi===sw?"sel":"",+dt===+t0?"today":""].join(" ");
+      html+=`<button type="button" class="${cls}" data-wk="${wi}" aria-label="${d} ${MONF[m]}, tydzień ${wi+1}${tg?", "+esc(tg):""}">${d}</button>`;
+    }
+    html+=`</div></div>`;
+  }
+  html+=`</div>`;
+  const w=p.weeks[sw];
+  if(w){const h=w.tasks.reduce((a,t)=>a+(+t.h||0),0);
+    html+=`<div class="selweek" id="selweek"><div class="row" style="justify-content:space-between;align-items:baseline"><h3>Tydzień ${sw+1}${sw===cw?` <span class="pill mark">teraz</span>`:""}</h3><span class="mono small">${weekRange(p,sw)} · ${r1(h)} h</span></div>
+      <ul class="tasks">${w.tasks.map(t=>taskHTML(t,sw)).join("")||`<li class="muted small">Brak zadań.</li>`}</ul>
+      ${w.note?`<div class="small muted">📝 ${esc(w.note)}</div>`:""}
+      <form class="addline" data-add="${sw}"><input type="text" id="add-${sw}" placeholder="Dodaj własne zadanie" aria-label="Dodaj zadanie w tygodniu ${sw+1}"><button type="submit">Dodaj</button></form></div>`}
+  return html;
+}
+function weeksHTML(p,cw){
+  return `<div class="weeks">${p.weeks.map((w,i)=>{
+    const h=w.tasks.reduce((a,t)=>a+(+t.h||0),0);const allDone=w.tasks.length&&w.tasks.every(t=>t.done);
+    const cls=["wk",i===cw?"cur":"",i<cw?"past":"",allDone?"done":""].join(" ");
+    const tag=allDone?`<span class="pill ok">zrobione</span>`:(i<cw&&w.tasks.some(t=>!t.done))?`<span class="pill warn">zaległe</span>`:i===cw?`<span class="pill mark">teraz</span>`:"";
+    return `<div class="${cls}" id="wk-${i}">
+      <div class="d"><span class="n">tydz. ${i+1} · ${r1(h)} h</span><span class="r">${weekRange(p,i)}</span>${tag}</div>
+      <div class="body">
+        <ul class="tasks">${w.tasks.map(t=>taskHTML(t,i)).join("")}</ul>
+        ${w.note?`<div class="small muted">📝 ${esc(w.note)}</div>`:""}
+        <form class="addline" data-add="${i}"><input type="text" id="add-${i}" placeholder="Dodaj własne zadanie" aria-label="Dodaj zadanie w tygodniu ${i+1}"><button type="submit">Dodaj</button></form>
+      </div></div>`}).join("")}</div>`;
+}
+
+function matsHTML(p){
+  return `<div class="info">Źródła zaproponowane przez Claude pochodzą z jego wiedzy, nie z wyszukiwarki: przed nauką kliknij link i sprawdź, czy działa.</div>
+  <div class="mats">${p.materials.map((m,i)=>`<div class="mat"><div class="m">
+      ${m.url?`<a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.title)}</a>`:`<b>${esc(m.title)}</b>`}
+      ${m.topic?" "+tag(m.topic):""} ${m.src==="claude"?`<span class="pill mark">od Claude</span>`:""}
+      ${m.note?`<div class="small muted">${esc(m.note)}</div>`:""}</div>
+      <button type="button" class="ghost" data-delmat="${i}" aria-label="Usuń materiał">✕</button></div>`).join("")||`<p class="muted">Brak materiałów. Dodaj własne albo poproś Claude o propozycje.</p>`}</div>
+  <h3>Dodaj własny materiał</h3>
+  <form id="matform" class="grid2">
+    <label class="f">Tytuł<input type="text" id="m-title" required placeholder="np. Biologia Campbella, rozdz. 6"></label>
+    <label class="f">Link <span class="hint">opcjonalnie</span><input type="url" id="m-url" placeholder="https://"></label>
+    <label class="f">Temat <span class="hint">opcjonalnie</span><input type="text" id="m-topic" list="topics-dl"></label>
+    <div style="display:flex;align-items:end"><button type="submit">Dodaj materiał</button></div>
+  </form>
+  <datalist id="topics-dl">${(p.topics||[]).map(t=>`<option value="${esc(t)}">`).join("")}</datalist>
+  <h3>Znajdź materiały z Claude</h3>
+  ${sample?`<form id="findform" class="row">
+    <input type="text" id="f-topic" list="topics-dl" placeholder="Temat, np. Programowanie dynamiczne" style="flex:1;min-width:200px" required>
+    <button type="submit" class="primary">Szukaj</button></form>
+  <div id="found" class="mats"></div><div id="find-status" class="status"></div>`:""}`;
+}
+
+function settingsHTML(p){
+  return `<form id="setform" class="grid2">
+    <label class="f">Nazwa<input type="text" id="s-name" value="${esc(p.name)}" required></label>
+    <label class="f">Godzin na tydzień<input type="number" id="s-hours" min="1" max="60" step="0.5" value="${p.hours}"></label>
+    <label class="f">Koniec<input type="date" id="s-end" value="${esc(p.end)}" min="${esc(p.start)}"></label>
+    <div style="display:flex;align-items:end"><button type="submit">Zapisz</button></div>
+  </form>
+  <p class="small muted">Zmiana daty końca dopisuje albo usuwa tygodnie na końcu planu. Po zmianie użyj przeliczenia, żeby rozłożyć zadania na nowo.</p>
+  <div class="row"><button type="button" data-act="replan">Przelicz niezrobione zadania od tego tygodnia</button></div>
+  <h3>Kopia zapasowa</h3>
+  <p class="small muted" style="margin:0">Plany są zapisane tylko w tej przeglądarce. Pobierz plik, żeby ich nie stracić albo przenieść je na inne urządzenie.</p>
+  <div class="row"><button type="button" data-act="export">Pobierz kopię wszystkich planów</button>
+    <label class="filebtn">Wczytaj kopię z pliku<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
+  <div class="row" id="delrow"><button type="button" data-act="del">Usuń plan</button></div>`;
+}
+
+function renderNew(){
+  const t=today();const e=new Date(+t+12*7*DAY);
+  main.innerHTML=`<section class="panel">
+    <h2>Nowy plan</h2>
+    <p class="muted" style="margin:0">Wpisz, czego się uczysz: kierunek, maturę, kurs, egzamin. Kalendarz rozłoży to na tygodnie od startu do końca, a ostatnie ok. 10% czasu zostawi na powtórki.</p>
+    <form id="newform" style="display:flex;flex-direction:column;gap:14px">
+      <label class="f">Nazwa planu<input type="text" id="n-name" required placeholder="np. Matura z biologii 2027"></label>
+      <div class="grid2">
+        <label class="f">Start<input type="date" id="n-start" value="${fd(t)}" required></label>
+        <label class="f">Koniec<input type="date" id="n-end" value="${fd(e)}" required></label>
+        <label class="f">Godzin na tydzień<input type="number" id="n-hours" min="1" max="60" step="0.5" value="6" required></label>
+      </div>
+      <label class="f">Co trzeba się nauczyć <span class="hint">jeden temat w linii; możesz wkleić listę z wymagań, sylabusa albo informatora</span>
+        <textarea id="n-topics" placeholder="Budowa komórki&#10;Genetyka klasyczna&#10;Ekologia"></textarea></label>
+      <label class="f">Twoje materiały <span class="hint">opcjonalnie; jeden w linii, w formacie: tytuł | link</span>
+        <textarea id="n-mats" style="min-height:70px" placeholder="Biologia Campbella&#10;Informator CKE | https://cke.gov.pl/"></textarea></label>
+      ${sample?`<fieldset style="border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <legend class="small" style="padding:0 6px">Pomoc Claude</legend>
+        <label class="row" style="gap:8px"><input type="checkbox" id="n-claude" checked> Rozbij tematy na konkretne zadania i oszacuj czas</label>
+        <label class="row" style="gap:8px"><input type="checkbox" id="n-find" checked> Znajdź darmowe materiały do każdego tematu</label>
+        <label class="f">Uwagi dla Claude <span class="hint">opcjonalnie, np. „poziom rozszerzony”, „mam słabą chemię”</span><input type="text" id="n-extra"></label>
+      </fieldset>`:`<p class="small muted">Każdy temat dostanie równą część czasu. Długie tematy kalendarz sam podzieli na części.</p>`}
+      <div class="row"><button type="submit" class="primary" id="n-go">Rozplanuj</button><span id="n-status" class="status"></span></div>
+    </form></section>`;
+}
+
+/* ---------- zdarzenia ---------- */
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-plan]");
+  if(b){sel=b.dataset.plan;sub="mies";selWeek=null;render();return}
+  const st=e.target.closest("[data-sub]");if(st){sub=st.dataset.sub;render();return}
+  const dy=e.target.closest("button.day[data-wk]");if(dy){selWeek=+dy.dataset.wk;render();const el=document.getElementById("selweek");if(el)el.scrollIntoView({block:"nearest",behavior:"smooth"});return}
+  const p=current();if(!p)return;
+  const del=e.target.closest("[data-del]");
+  if(del){const w=p.weeks[+del.dataset.w];w.tasks=w.tasks.filter(t=>t.id!==del.dataset.del);render();save(p,["weeks"]);return}
+  const dm=e.target.closest("[data-delmat]");
+  if(dm){p.materials.splice(+dm.dataset.delmat,1);render();save(p,["materials"]);return}
+  const addm=e.target.closest("[data-addfound]");
+  if(addm){const m=JSON.parse(addm.dataset.addfound);p.materials.push(m);addm.disabled=true;addm.textContent="Dodano";save(p,["materials"]);
+    const h=document.querySelector('[data-sub="mat"]');if(h)h.textContent=`Materiały (${p.materials.length})`;return}
+  const act=e.target.closest("[data-act]")?.dataset.act;
+  if(act==="replan"){const k=replan(p);render();save(p,["weeks"]);setSync(`Przeliczono ${k} niezrobionych zadań od tego tygodnia.`);}
+  if(act==="del"){document.getElementById("delrow").innerHTML=`<span class="confirm">Na pewno usunąć „${esc(p.name)}”? Tego nie da się cofnąć. <button type="button" data-act="del2">Tak, usuń</button><button type="button" data-act="del0">Anuluj</button></span>`}
+  if(act==="del0")render();
+  if(act==="del2"){try{await removePlan(p)}catch(err){setSync("Nie udało się usunąć: "+(err.message||err))}}
+});
+document.addEventListener("change",e=>{
+  const c=e.target.closest("input[data-t]");if(!c)return;
+  const p=current();if(!p)return;
+  const t=p.weeks[+c.dataset.w].tasks.find(x=>x.id===c.dataset.t);if(!t)return;
+  t.done=c.checked;render();save(p,["weeks"]);
+});
+let noteTimer=null;
+document.addEventListener("input",e=>{
+  const n=e.target.closest("[data-note]");if(!n)return;
+  const p=current();if(!p)return;
+  p.weeks[+n.dataset.note].note=n.value;
+  clearTimeout(noteTimer);noteTimer=setTimeout(()=>save(p,["weeks"]),900);
+});
+document.addEventListener("submit",async e=>{
+  e.preventDefault();const f=e.target;const p=current();
+  if(f.dataset.add!==undefined&&p){
+    const i=+f.dataset.add;const inp=f.querySelector("input");const v=inp.value.trim();if(!v)return;
+    p.weeks[i].tasks.push({id:uid(),t:v,h:1,topic:"",done:false});render();save(p,["weeks"]);
+    const again=document.getElementById("add-"+i);if(again)again.focus();return;
+  }
+  if(f.id==="matform"&&p){
+    const m={title:val("m-title"),url:val("m-url"),topic:val("m-topic"),src:"own"};if(!m.title)return;
+    p.materials.push(m);render();save(p,["materials"]);return;
+  }
+  if(f.id==="setform"&&p){
+    p.name=val("s-name")||p.name;p.hours=+val("s-hours")||p.hours;
+    const ne=val("s-end");
+    if(ne&&ne>=p.start){const n=nWeeks(p.start,ne);
+      if(n>p.weeks.length)while(p.weeks.length<n)p.weeks.push({tasks:[],note:""});
+      else if(n<p.weeks.length){const cut=p.weeks.splice(n);const rest=cut.flatMap(w=>w.tasks.filter(t=>!t.done));p.weeks[n-1].tasks.push(...rest)}
+      p.end=ne;}
+    render();save(p,["name","hours","end","weeks","notionDS"]);return;
+  }
+  if(f.id==="findform"&&p){
+    const topic=val("f-topic");if(!topic)return;
+    const out=document.getElementById("found"),st=document.getElementById("find-status");
+    const btn=f.querySelector("button");btn.disabled=true;out.innerHTML="";st.textContent="Claude szuka materiałów…";
+    try{
+      const res=await askMaterials(topic,p,({text})=>{st.textContent=`Claude pisze… (${text.length} znaków)`});
+      const list=Array.isArray(res)?res:(res.materials||[]);
+      out.innerHTML=list.map(m=>{const mm={title:String(m.title||"Bez tytułu"),url:String(m.url||""),note:String(m.note||""),topic,src:"claude"};
+        return `<div class="mat"><div class="m">${mm.url?`<a href="${esc(mm.url)}" target="_blank" rel="noopener">${esc(mm.title)}</a>`:`<b>${esc(mm.title)}</b>`}<div class="small muted">${esc(mm.note)}</div></div>
+        <button type="button" data-addfound="${esc(JSON.stringify(mm))}">Dodaj</button></div>`}).join("")||`<p class="muted">Claude nic nie znalazł. Spróbuj opisać temat inaczej.</p>`;
+      st.textContent="Kliknij „Dodaj” przy tym, co chcesz zachować. Sprawdź linki przed nauką.";
+    }catch(err){st.textContent=errMsg(err)}
+    btn.disabled=false;return;
+  }
+  if(f.id==="newform"){
+    const form={name:val("n-name"),start:val("n-start"),end:val("n-end"),hours:+val("n-hours")||6,
+      topics:val("n-topics").split("\n").map(s=>s.replace(/^[\s\-•*\d.)]+/,"").trim()).filter(Boolean),
+      materials:val("n-mats").split("\n").map(s=>s.trim()).filter(Boolean).map(s=>{const [t,u]=s.split("|").map(x=>x.trim());return {title:t,url:u||"",topic:"",src:"own"}}),
+      extra:val("n-extra")};
+    const st=document.getElementById("n-status");
+    if(!form.name){st.textContent="Podaj nazwę planu.";return}
+    if(form.end<form.start){st.textContent="Data końca musi być po dacie startu.";return}
+    const useC=sample&&document.getElementById("n-claude")?.checked;form.find=sample&&document.getElementById("n-find")?.checked;
+    if(!form.topics.length&&!useC){st.textContent="Wpisz przynajmniej jeden temat albo włącz pomoc Claude.";return}
+    const go=document.getElementById("n-go");go.disabled=true;
+    let topics=form.topics.map(t=>({title:t})),mats=form.materials.slice();
+    if(useC||form.find){
+      st.textContent="Claude układa plan… to może potrwać do minuty.";
+      try{
+        const res=await askPlan(form,({text})=>{st.textContent=`Claude pisze plan… (${text.length} znaków)`});
+        const tp=(res&&res.topics)||[];
+        if(tp.length){
+          topics=tp.map(t=>({title:String(t.title||"Temat"),hours:+t.hours||0,
+            tasks:useC&&Array.isArray(t.tasks)?t.tasks.filter(x=>x&&x.t).map(x=>({t:String(x.t),h:+x.h||1})):null}));
+          if(form.find)tp.forEach(t=>(t.materials||[]).forEach(m=>m&&m.title&&mats.push({title:String(m.title),url:String(m.url||""),note:String(m.note||""),topic:String(t.title||""),src:"claude"})));
+        }
+      }catch(err){st.textContent=errMsg(err)+" Rozkładam tematy bez Claude.";if(!topics.length){go.disabled=false;return}}
+    }
+    const plan=buildPlan({name:form.name,start:form.start,end:form.end,hours:form.hours,topics,materials:mats});
+    try{await createPlan(plan);st.textContent=""}catch(err){st.textContent="Nie udało się zapisać planu: "+(err.message||err);go.disabled=false}
+  }
+});
+const val=id=>(document.getElementById(id)?.value||"").trim();
+
+/* ---------- fiszki ---------- */
+const BOX=[1,3,7,14,30,60];
+let showAns=false, cardFilter="", cardMsg="";
+const addDays=(n)=>fd(new Date(+today()+n*DAY));
+function dueCards(p){const t=fd(today());return (p.cards||[]).filter(c=>(c.due||"")<=t&&(!cardFilter||c.topic===cardFilter))}
+function cardsHTML(p){
+  const cards=p.cards||[];const due=dueCards(p);const c=due[0];
+  const tags=[...new Set(cards.map(c=>c.topic).filter(Boolean))];
+  return `<div class="row" style="justify-content:space-between">
+      <span class="small muted">Na dziś: <b class="mono">${due.length}</b> · wszystkich: <span class="mono">${cards.length}</span></span>
+      ${tags.length?`<label class="row small" style="gap:6px">Tag <select id="c-filter" data-cfilter><option value="">wszystkie</option>${tags.map(t=>`<option ${t===cardFilter?"selected":""}>${esc(t)}</option>`).join("")}</select></label>`:""}
+    </div>
+    ${cardMsg?`<div class="info">${esc(cardMsg)}</div>`:""}
+    ${c?`<div class="flash" aria-live="polite">
+        <div class="row" style="justify-content:space-between">${c.topic?tag(c.topic):"<span></span>"}<span class="mono small muted">pudełko ${(c.box||0)+1}/${BOX.length}</span></div>
+        <div class="fq">${esc(c.q)}</div>
+        ${showAns?`<div class="fa">${esc(c.a)}</div>
+          <div class="row"><button type="button" data-rate="0" data-card="${esc(c.id)}">Nie umiem <span class="small muted">(jutro)</span></button>
+          <button type="button" class="primary" data-rate="1" data-card="${esc(c.id)}">Umiem <span class="small">(za ${BOX[Math.min((c.box||0)+1,BOX.length-1)]} dni)</span></button></div>`
+        :`<div class="row"><button type="button" class="primary" data-act="show">Pokaż odpowiedź</button></div>`}
+      </div>`
+    :`<div class="empty"><h3>${cards.length?"Na dziś wszystko powtórzone":"Nie masz jeszcze fiszek"}</h3><p class="muted small" style="margin:0;max-width:44ch">${cards.length?"Kolejne fiszki wrócą, gdy minie ich termin.":(sample?"Odhacz zadanie i kliknij przy nim „+ fiszki”, albo zrób fiszki z dowolnego tematu poniżej.":"Dodaj pierwszą fiszkę poniżej: pytanie z jednej strony, odpowiedź z drugiej.")}</p></div>`}
+    ${sample?`<h3>Fiszki z tematu (Claude)</h3><form id="cardgen" class="row">
+      <input type="text" id="cg-topic" list="topics-dl2" placeholder="np. Transkrypcja i obróbka RNA" style="flex:1;min-width:200px" required>
+      <button type="submit" class="primary">Zrób 6 fiszek</button></form>
+      <datalist id="topics-dl2">${p.weeks.flatMap(w=>w.tasks).filter(t=>!t.t.startsWith("Praktyka")).map(t=>`<option value="${esc(t.t.replace(/ \(czytaj:.*\)$/,""))}">`).join("")}</datalist>`:""}
+    <details><summary>Dodaj fiszkę ręcznie</summary>
+      <form id="cardadd" class="grid2" style="margin-top:10px">
+        <label class="f">Pytanie<input type="text" id="ca-q" required></label>
+        <label class="f">Odpowiedź<input type="text" id="ca-a" required></label>
+        <label class="f">Tag<input type="text" id="ca-t" list="tags-dl"></label>
+        <div style="display:flex;align-items:end"><button type="submit">Dodaj</button></div>
+      </form><datalist id="tags-dl">${[...new Set(p.weeks.flatMap(w=>w.tasks.map(t=>t.topic)).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join("")}</datalist></details>
+    ${cards.length?`<details><summary>Wszystkie fiszki (${cards.length})</summary><div class="mats" style="margin-top:8px">${cards.map(c=>`<div class="mat"><div class="m"><b>${esc(c.q)}</b><div class="small muted">${esc(c.a)}</div><div class="small mono muted">następna: ${esc(c.due||"dziś")}</div></div><button type="button" class="ghost" data-delcard="${esc(c.id)}" aria-label="Usuń fiszkę">✕</button></div>`).join("")}</div></details>`:""}`;
+}
+async function genCards(p,topicText,tagName,ctx){
+  const prompt=`Zrób fiszki do nauki (po polsku) z tematu: "${topicText}".
+Kontekst: ${p.name}${ctx?"; "+ctx:""}.
+Zasady: 6 fiszek; jedno pytanie = jedna rzecz; odpowiedź krótka (1–2 zdania), rzeczowa i poprawna merytorycznie; mieszaj definicje, mechanizmy i „dlaczego”. Terminy angielskie podaj w nawiasie, jeśli są ważne.
+Odpowiedz wyłącznie JSON: [{"q":"Co to jest...?","a":"..."}]`;
+  const res=await sample.json(prompt,{modelTier:"default"});
+  const list=(Array.isArray(res)?res:res.cards||[]).filter(x=>x&&x.q&&x.a);
+  p.cards=p.cards||[];
+  for(const x of list)p.cards.push({id:uid(),q:String(x.q),a:String(x.a),topic:tagName||"",box:0,due:fd(today())});
+  return list.length;
+}
+
+/* ---------- Notion ---------- */
+let mcp=null; const NOTION="Notion"; const notionBusy={};
+function notionHTML(p,wi){
+  if(!p.notionDS)return "";
+  const w=p.weeks[wi];
+  if(!mcp)return `<div class="small muted">Zapis do Notion działa po otwarciu kalendarza w Claude z podłączonym Notion.</div>`;
+  return `<div class="row small">${w.notion?`<a href="${esc(w.notion)}" target="_blank" rel="noopener">Otwórz w Notion ↗</a>`:""}
+    <button type="button" data-notion="${wi}" ${notionBusy[wi]?"disabled":""}>${notionBusy[wi]?"Zapisuję w Notion…":w.notion?"Dopisz notatkę do Notion":"Zapisz notatkę w Notion"}</button>
+    <span class="muted" id="nst-${wi}">${esc(notionBusy["m"+wi]||"")}</span></div>`;
+}
+const OBSZAR={"biologia":"Biologia molekularna","informatyka":"Informatyka"};
+function findUrl(x){const m=JSON.stringify(x||"").match(/https:\/\/(?:app\.notion\.com|www\.notion\.so)\/[^"\\\s)]+/);return m?m[0]:""}
+async function saveToNotion(p,wi){
+  const w=p.weeks[wi];const tg=weekTag(w);
+  const main=(w.tasks.find(t=>!t.t.startsWith("Praktyka"))||w.tasks[0]||{t:"Tydzień "+(wi+1)}).t.replace(/ \(czytaj:.*\)$/,"");
+  const body=`### Z Kalendarza nauki (${short(today())} ${today().getFullYear()})\n${(w.note||"(bez notatki)").trim()}\n\nZadania tygodnia:\n${w.tasks.map(t=>`- ${t.done?"✓":"○"} ${t.t}`).join("\n")}`;
+  let url=w.notion||"";
+  if(!url){
+    const q=await mcp.callTool(NOTION,"notion-query-data-sources",{data:{mode:"rows",data_source_url:p.notionDS,limit:10,
+      filter:{type:"group",operator:"and",filters:[{type:"property",property:"Tydzień",propertyType:"number",operator:"number_equals",value:{type:"exact",value:wi+1}}]}}},{cache:false});
+    const rows=(q.payload&&q.payload.results)||[];
+    const want=OBSZAR[(tg||"").toLowerCase()];
+    const hit=rows.find(r=>want&&r.Obszar===want&&want!=="Informatyka")||rows.find(r=>r.Obszar===want)||rows[0];
+    if(hit&&hit.url)url=hit.url;
+  }
+  if(url){
+    await mcp.callTool(NOTION,"notion-update-page",{page_id:url,command:"insert_content",content:body,position:{type:"end"}},{cache:false});
+  }else{
+    const props={"Temat":main,"Tydzień":wi+1,"Daty":weekRange(p,wi),"Źródło":p.name};
+    const ob=OBSZAR[(tg||"").toLowerCase()];if(ob)props["Obszar"]=ob;
+    const r=await mcp.callTool(NOTION,"notion-create-pages",{parent:{data_source_id:p.notionDS.replace("collection://","")},pages:[{properties:props,content:body}],allow_async:false},{cache:false});
+    url=findUrl(r.payload)||findUrl(r.content);
+  }
+  if(url)w.notion=url;
+}
+function mcpMsg(e){const c=e&&e.code;
+  if(c==="server_not_connected")return "Podłącz Notion w ustawieniach Claude (Łączniki).";
+  if(c==="needs_reauth")return "Zaloguj się ponownie do Notion w ustawieniach Claude (Łączniki).";
+  if(c==="not_in_manifest")return "Nie zezwolono temu kalendarzowi na Notion.";
+  if(c==="tool_error")return "Notion odrzucił zapis. Sprawdź adres bazy w Ustawieniach.";
+  return "Nie udało się połączyć z Notion. Spróbuj za chwilę.";}
+
+document.addEventListener("click",async e=>{
+  const p=current();if(!p)return;
+  if(e.target.closest('[data-act="show"]')){showAns=true;render();return}
+  const rt=e.target.closest("[data-rate]");
+  if(rt){const c=(p.cards||[]).find(x=>x.id===rt.dataset.card);if(!c)return;
+    if(rt.dataset.rate==="1"){c.box=Math.min((c.box||0)+1,BOX.length-1);c.due=addDays(BOX[c.box])}else{c.box=0;c.due=addDays(1)}
+    showAns=false;cardMsg="";render();save(p,["cards"]);return}
+  const dc=e.target.closest("[data-delcard]");
+  if(dc){p.cards=(p.cards||[]).filter(x=>x.id!==dc.dataset.delcard);render();save(p,["cards"]);return}
+  const mk=e.target.closest("[data-mkcards]");
+  if(mk&&sample){const t=p.weeks[+mk.dataset.w].tasks.find(x=>x.id===mk.dataset.mkcards);if(!t)return;
+    mk.disabled=true;mk.textContent="Claude pisze…";
+    try{const n=await genCards(p,t.t.replace(/ \(czytaj:.*\)$/,""),t.topic);cardMsg=`Dodano ${n} fiszek z: ${t.t}`;setSync(`Dodano ${n} fiszek. Znajdziesz je w zakładce Fiszki.`);save(p,["cards"]);render()}
+    catch(err){mk.disabled=false;mk.textContent="+ fiszki";setSync(errMsg(err))}
+    return}
+  const nb=e.target.closest("[data-notion]");
+  if(nb&&mcp){const wi=+nb.dataset.notion;notionBusy[wi]=true;notionBusy["m"+wi]="";render();
+    try{await saveToNotion(p,wi);notionBusy["m"+wi]="Zapisano w Notion.";save(p,["weeks"])}
+    catch(err){notionBusy["m"+wi]=mcpMsg(err)}
+    notionBusy[wi]=false;render();return}
+});
+document.addEventListener("click",async e=>{
+  if(!e.target.closest('[data-act="example"]'))return;
+  const t=today();const end=new Date(+t+26*7*DAY);
+  const plan=buildPlan({name:"Matura z biologii (przykład)",start:fd(t),end:fd(end),hours:5,
+    topics:["Budowa chemiczna organizmów","Budowa i funkcjonowanie komórki","Metabolizm: enzymy, oddychanie, fotosynteza","Różnorodność organizmów: wirusy, bakterie, protisty, grzyby","Rośliny: budowa i fizjologia","Zwierzęta: przegląd i fizjologia","Człowiek: układy narządów","Genetyka klasyczna","Genetyka molekularna i biotechnologia","Ewolucja","Ekologia i ochrona środowiska"].map(x=>({title:x})),
+    materials:[{title:"Informator i arkusze CKE",url:"https://cke.gov.pl/",topic:"",src:"own",note:"oficjalne wymagania i arkusze z poprzednich lat"}]});
+  try{await createPlan(plan);setSync("Dodano przykładowy plan. Możesz go zmienić albo usunąć w Ustawieniach.")}catch(err){setSync("Nie udało się dodać przykładu: "+(err.message||err))}
+});
+document.addEventListener("click",e=>{
+  if(!e.target.closest('[data-act="export"]'))return;
+  const blob=new Blob([JSON.stringify({app:"kalendarz-nauki",v:1,plans},null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`kalendarz-nauki-${fd(today())}.json`;document.body.append(a);a.click();a.remove();
+  setSync("Pobrano kopię planów.");
+});
+document.addEventListener("change",async e=>{
+  if(e.target.id!=="imp")return;const f=e.target.files[0];if(!f)return;
+  try{const d=JSON.parse(await f.text());const list=Array.isArray(d)?d:d.plans;if(!Array.isArray(list))throw new Error("to nie jest plik z kopią planów");
+    let n=0;for(const p of list){if(!p||!Array.isArray(p.weeks))continue;const i=plans.findIndex(x=>x.id===p.id);if(i>=0)plans[i]=p;else plans.push(p);n++}
+    saveLocal();sel=plans[0]?.id||null;render();setSync(`Wczytano ${n} ${n===1?"plan":"plany"}.`)}
+  catch(err){setSync("Nie udało się wczytać pliku: "+(err.message||err))}
+});
+document.addEventListener("change",e=>{const f=e.target.closest("[data-cfilter]");if(f){cardFilter=f.value;showAns=false;render()}});
+document.addEventListener("submit",async e=>{
+  const f=e.target;const p=current();if(!p)return;
+  if(f.id==="cardadd"){e.preventDefault();p.cards=p.cards||[];p.cards.push({id:uid(),q:val("ca-q"),a:val("ca-a"),topic:val("ca-t"),box:0,due:fd(today())});cardMsg="Dodano fiszkę.";render();save(p,["cards"])}
+  if(f.id==="cardgen"&&sample){e.preventDefault();const topic=val("cg-topic");if(!topic)return;
+    const btn=f.querySelector("button");btn.disabled=true;btn.textContent="Claude pisze…";
+    const hit=p.weeks.flatMap(w=>w.tasks).find(t=>t.t.startsWith(topic));
+    try{const n=await genCards(p,topic,hit?hit.topic:"");cardMsg=`Dodano ${n} fiszek z: ${topic}`;save(p,["cards"]);render()}
+    catch(err){btn.disabled=false;btn.textContent="Zrób 6 fiszek";setSync(errMsg(err))}}
+});
+function errMsg(err){
+  const c=err&&err.code;
+  if(c==="not_granted")return "Nie ma zgody na zapytania do Claude.";
+  if(c==="rate_limited")return "Osiągnięto limit zapytań do Claude. Spróbuj za chwilę.";
+  if(c==="invalid_json")return "Claude odpowiedział w złym formacie. Spróbuj jeszcze raz.";
+  return "Coś poszło nie tak: "+(err&&err.message||err)+".";
+}
+
+/* ---------- start ---------- */
+render();
+(async()=>{
+  const timer=setTimeout(()=>{if(!coll){localMode=true;plans=loadLocal();sel=sel||plans[0]?.id||null;setSync("Tryb lokalny: plany zapisują się tylko w tej przeglądarce.");render()}},10000);
+  const C=window.claude;
+  if(!C||!C.use){clearTimeout(timer);localMode=true;plans=loadLocal();sel=plans[0]?.id||null;setSync("");render();return}
+  C.use("sample").then(s=>{sample=s;render()}).catch(()=>{});
+  db=await C.use("db").catch(()=>null);
+  if(!db){clearTimeout(timer);localMode=true;plans=loadLocal();sel=plans[0]?.id||null;setSync("Tryb lokalny: plany zapisują się tylko w tej przeglądarce.");render();return}
+  const U=await C.use("user").catch(()=>null);
+  const myId=U?await U.id().catch(()=>null):null;
+  if(!myId){clearTimeout(timer);localMode=true;plans=loadLocal();sel=plans[0]?.id||null;setSync("Tryb lokalny: plany zapisują się tylko w tej przeglądarce.");render();return}
+  coll=db.collection("data/users/"+myId);
+  setSync("Wczytuję plany…");
+  coll.orderBy("created").onSnapshot(snap=>{
+    clearTimeout(timer);localMode=false;
+    plans=snap.docs.map(d=>({id:d.id,...JSON.parse(JSON.stringify(d.data()))})).filter(p=>Array.isArray(p.weeks));
+    if(sel!=="__new"&&!plans.some(p=>p.id===sel))sel=plans[0]?.id||null;
+    if(sel==="__new"&&document.activeElement&&document.activeElement.closest("#newform"))return; // nie przerywaj pisania
+    const a=document.activeElement;const keep=a&&a.id&&(a.tagName==="TEXTAREA"||a.type==="text")?{id:a.id,s:a.selectionStart}:null;
+    if(keep&&a.dataset.note!==undefined)return; // nie nadpisuj notatki w trakcie pisania
+    render();
+    if(!snap.metadata.hasPendingWrites)setSync("");
+    if(keep){const el=document.getElementById(keep.id);if(el){el.focus();try{el.setSelectionRange(keep.s,keep.s)}catch(e){}}}
+  },err=>{setSync("Nie mogę wczytać planów: "+(err.message||err.code)+". Odśwież stronę.")});
+})();
+</script>
+
+</body>
+</html>
